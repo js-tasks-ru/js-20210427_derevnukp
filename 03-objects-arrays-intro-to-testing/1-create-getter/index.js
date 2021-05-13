@@ -3,19 +3,14 @@
  * @param {string} path - the strings path separated by dot
  * @returns {function} - function-getter which allow get value from object by set path
  */
-export function createGetter(path) {
-  return function (obj) {
-    let temp = {...obj};
-    const arrPath = path.split(".");
-    for (let i = 0; i <= arrPath.length - 1; i++) {
-      const way = arrPath[i];
-      if (temp[way]) {
-        temp = temp[way];
-      }
-      else {
-        return temp = undefined;
-      }
+ export function createGetter(path) {
+  const pathSplit = path.split('.');
+  return fn => {
+    let res = fn;
+    for (const item of pathSplit) {
+      if (res === undefined) break;
+      res = res[item];
     }
-    return temp;
+    return res; 
   };
 }
