@@ -1,91 +1,130 @@
-export default class ColumnChart {
+import ColumnChart from './index.js';
 
-  element = null;
-  subElements = {};
-  chartHeight = 50;
+describe('oop-basic-intro-to-dom/column-chart', () => {
+  let columnChart;
 
-  constructor({
-                data = [],
-                label = '',
-                link = '',
-                value = 0
-              } = {}) {
-    this.data = data;
-    this.label = label;
-    this.link = link;
-    this.value = value;
+  beforeEach(() => {
+    columnChart = new ColumnChart({
+      data: [],
+      label: '',
+      link: '',
+      value: 0
+    });
 
-    this.render();
-  }
+    document.body.append(columnChart.element);
+  });
 
-  getColumnBody(data) {
-    const maxValue = Math.max(...data);
-    const scale = this.chartHeight / maxValue;
+  afterEach(() => {
+    columnChart.destroy();
+    columnChart = null;
+  });
 
-    return data
-      .map(item => {
-        const percent = (item / maxValue * 100).toFixed(0);
+  it('should be rendered correctly', () => {
+    expect(columnChart.element).toBeInTheDocument();
+    expect(columnChart.element).toBeVisible();
+  });
 
-        return `<div style="--value: ${Math.floor(item * scale)}" data-tooltip="${percent}%"></div>`;
-      })
-      .join('');
-  }
+  it('should have ability to define "label"', () => {
+    const label = 'New label';
 
-  getLink() {
-    return this.link ? `<a class="column-chart__link" href="${this.link}">View all</a>` : '';
-  }
+    columnChart = new ColumnChart({ label });
 
-  get template() {
-    return `
-            <div class="column-chart column-chart_loading" style="--chart-height: ${this.chartHeight}">
-                <div class="column-chart__title">
-                    Total ${this.label} ${this.getLink()}
-                </div>
-                <div class="column-chart__container">
-                    <div data-element="header" class="column-chart__header">
-                        ${this.value}
-                    </div>
-                    <div data-element="body" class="column-chart__chart">
-                        ${this.getColumnBody(this.data)}
-                    </div>
-                </div>
-            </div>
-            `}
+    const title = columnChart.element.querySelector('.column-chart__title');
 
-  render() {
-    const element = document.createElement('div');
+    expect(title).toHaveTextContent(label);
+  });
 
-    element.innerHTML = this.template;
+  it('should have ability to define "link"', () => {
+    const link = 'https://google.com';
 
-    this.element = element.firstElementChild;
+    columnChart = new ColumnChart({ link });
 
-    if (this.data.length) {
-      this.element.classList.remove('column-chart_loading');
-    }
+    const columnLink = columnChart.element.querySelector('.column-chart__link');
 
-    this.subElements = this.getSubElements(this.element);
-  }
-  getSubElements(element) {
-    const elements = element.querySelectorAll('[data-element]');
+    expect(columnLink).toBeVisible();
+  });
 
-    return [...elements].reduce((accum, subElement) => {
-      accum[subElement.dataset.element] = subElement;
+  it('should have property "chartHeight"', () => {
+    columnChart = new ColumnChart();
 
-      return accum;
-    }, {});
-  }
+    expect(columnChart.chartHeight).toEqual(50);
+  });
 
-  update(data) {
-    this.subElements.body.innerHTML = this.getColumnBody(data);
-  }
+  it('should have ability to define total value', () => {
+    const value = 200;
+    columnChart = new ColumnChart({ value });
+    const columnLink = columnChart.element.querySelector('.column-chart__header');
 
-  remove() {
-    this.element.remove();
-  }
+    expect(columnLink).toHaveTextContent(value);
+  });
 
-  destroy() {
-    this.remove();
-    this.element = null;
-    this.subElements = {};
-  }
+  it('should have ability to define "formatHeading" function', () => {
+    const formatHeading = data => `USD ${data}`;
+    const value = 100;
+
+    columnChart = new ColumnChart({ formatHeading, value });
+    const columnLink = columnChart.element.querySelector('.column-chart__header');
+
+    expect(columnLink).toHaveTextContent(formatHeading(value));
+  });
+
+  it('should render data correctly', () => {
+    const data = [10, 20, 30];
+
+    columnChart = new ColumnChart({ data });
+
+    const chart = columnChart.element.querySelector('.column-chart__chart');
+    const columnProps = getColumnProps(data);
+
+    expect(chart.childElementCount).toEqual(data.length);
+
+    expect(getComputedStyle(chart.children[0]).getPropertyValue('--value')).toEqual(columnProps[0].value);
+    expect(getComputedStyle(chart.children[1]).getPropertyValue('--value')).toEqual(columnProps[1].value);
+    expect(getComputedStyle(chart.children[2]).getPropertyValue('--value')).toEqual(columnProps[2].value);
+
+    expect(chart.children[0].dataset.tooltip).toEqual(columnProps[0].percent);
+    expect(chart.children[1].dataset.tooltip).toEqual(columnProps[1].percent);
+    expect(chart.children[2].dataset.tooltip).toEqual(columnProps[2].percent);
+  });
+
+  it('should have ability to be updated by new "data" values (should re-render only body with charts columns)', () => {
+    const data = [10];
+
+    columnChart = new ColumnChart({ data });
+
+    const chart = columnChart.element.querySelector('.column-chart__chart');
+
+    const newData = [20];
+    const columnProps = getColumnProps(newData);
+
+    columnChart.update(newData);
+
+    expect(getComputedStyle(chart.children[0]).getPropertyValue('--value')).toEqual(columnProps[0].value);
+    expect(chart.children[0].dataset.tooltip).toEqual(columnProps[0].percent);
+  });
+
+  it('should have loading indication if data wasn\'t passed ', () => {
+    columnChart = new ColumnChart();
+    document.body.append(columnChart);
+
+    expect(columnChart.element).toHaveClass('column-chart_loading');
+  });
+
+  it('should have ability to be removed', () => {
+    columnChart.remove();
+
+    expect(columnChart.element).not.toBeInTheDocument();
+  });
+});
+
+function getColumnProps(data) {
+  const maxValue = Math.max(...data);
+  const scale = 50 / maxValue;
+
+  return data.map(item => {
+    return {
+      percent: (item / maxValue * 100).toFixed(0) + '%',
+      value: String(Math.floor(item * scale))
+    };
+  });
 }
